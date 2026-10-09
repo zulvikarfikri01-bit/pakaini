@@ -40,7 +40,7 @@ git init
 git add .
 git commit -m "feat: migrate pakaini to postgresql supabase and railway deployment"
 git branch -M main
-git remote add origin https://github.com/USERNAME-ANDA/pakaini.git
+git remote add origin https://github.com/zulvikarfikri01-bit/pakaini.git
 git push -u origin main
 ```
 
