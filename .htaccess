@@ -1,0 +1,29 @@
+# ==============================================================================
+# PAKAINI - Shared Hosting Apache Configuration & Security (.htaccess)
+# ==============================================================================
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # Blokir akses langsung ke file sensitif dan database
+    RewriteRule ^(config|app|storage|views)/ - [F,L]
+    RewriteRule \.(sql|db|sqlite|log|ini|env|json|lock)$ - [F,L]
+
+    # Lewati file dan folder fisik yang ada (seperti gambar, css, js)
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+
+    # Arahkan semua request lainnya ke index.php
+    RewriteRule ^(.*)$ index.php [QSA,L]
+</IfModule>
+
+# Keamanan Tambahan
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-XSS-Protection "1; mode=block"
+    Header set X-Frame-Options "SAMEORIGIN"
+</IfModule>
+
+# Karakter Encoding Default UTF-8
+AddDefaultCharset UTF-8

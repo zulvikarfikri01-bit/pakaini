@@ -1,0 +1,32 @@
+# Dependencies
+/vendor/
+
+# Environment Variables
+.env
+.env.local
+
+# Database files & local SQLite caches
+/storage/*.db
+/storage/*.sqlite
+/storage/*.sqlite3
+
+# Log files
+*.log
+/logs/
+
+# Large archives and temporary dumps
+*.zip
+*.tar.gz
+*.rar
+pakaini_clean_deployment.zip
+
+# OS Generated Files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE and Editor Directories
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
