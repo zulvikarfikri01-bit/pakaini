@@ -1,13 +1,14 @@
 #!/bin/sh
 set -e
 
-# Railway memberikan port aplikasi melalui environment variable PORT
 PORT="${PORT:-80}"
 
-echo "Starting Apache on port ${PORT}..."
+echo "Starting Pakaini Web Server on port ${PORT}..."
 
-# Sesuaikan port Apache dengan PORT dari Railway
-sed -i "s/Listen .*/Listen ${PORT}/" /etc/apache2/ports.conf
+# Buat konfigurasi ports.conf murni untuk satu port agar tidak ada konflik Address Already In Use
+echo "Listen ${PORT}" > /etc/apache2/ports.conf
+
+# Sesuaikan VirtualHost default dengan port Railway
 sed -i "s/<VirtualHost \*:.*>/<VirtualHost \*:${PORT}>/" /etc/apache2/sites-available/000-default.conf
 
 # Jalankan Apache Web Server

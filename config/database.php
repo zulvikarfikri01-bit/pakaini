@@ -44,9 +44,8 @@ $db_pass = 'password_supabase_anda';    // Password database Supabase Anda
 $activeUrl = !empty($supabase_url) ? $supabase_url : (getenv('DATABASE_URL') ?: ($_ENV['DATABASE_URL'] ?? ''));
 
 if (!empty($activeUrl)) {
-    // Tangani skema postgresql:// atau postgres://
     $parsed = parse_url($activeUrl);
-    if (!empty($parsed['host'])) {
+    if ($parsed !== false && !empty($parsed['host'])) {
         $db_host = $parsed['host'];
         $db_port = !empty($parsed['port']) ? (int)$parsed['port'] : 5432;
         if (!empty($parsed['path'])) {
@@ -57,6 +56,19 @@ if (!empty($activeUrl)) {
         }
         if (isset($parsed['pass'])) {
             $db_pass = urldecode($parsed['pass']);
+        }
+    } elseif (preg_match('#^postgres(?:ql)?://(?:(?<user>[^:]+):(?<pass>.*?)@)?(?<host>[^:/]+)(?::(?<port>\d+))?(?:/(?<dbname>[^?]+))?#', $activeUrl, $matches)) {
+        // Fallback jika URL memiliki karakter khusus (#, ?) pada password yang membatalkan parse_url bawaan
+        $db_host = $matches['host'];
+        $db_port = !empty($matches['port']) ? (int)$matches['port'] : 5432;
+        if (!empty($matches['dbname'])) {
+            $db_name = $matches['dbname'];
+        }
+        if (isset($matches['user'])) {
+            $db_user = urldecode($matches['user']);
+        }
+        if (isset($matches['pass'])) {
+            $db_pass = urldecode($matches['pass']);
         }
     }
 }
