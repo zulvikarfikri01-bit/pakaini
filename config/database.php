@@ -3,66 +3,48 @@
  * PAKAINI - Social Media Exchange Platform
  * Konfigurasi Database PostgreSQL (config/database.php)
  * 
- * Siap 100% untuk Supabase & Railway Deployment
- * ==============================================================================
- * CARA MENGHUBUNGKAN KE SUPABASE (PILIH SALAH SATU):
- * ==============================================================================
- * CARA 1 (PALING MUDAH & DIREKOMENDASIKAN):
- * Buka Dashboard Supabase -> Project Settings -> Database -> Connection String (URI),
- * lalu salin dan tempel ke variabel $supabase_url di bawah ini:
- * Contoh:
- * $supabase_url = 'postgresql://postgres.xxx:password@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres';
- * 
- * CARA 2 (DEPLOY RAILWAY OTOMATIS):
- * Di Railway Dashboard, tambahkan Environment Variable:
- * Key   : DATABASE_URL
- * Value : (Connection String dari Supabase Anda)
- * Jika variable tersebut ada, sistem otomatis menggunakannya!
- * 
- * CARA 3 (MANUAL SATU PER SATU):
- * Masukkan host, user, password, dan port pada variabel di bawah CARA 1.
+ * Terhubung Dinamis ke Supabase via Environment Variable Railway (DATABASE_URL)
  * ==============================================================================
  */
 
 defined('ROOT_PATH') or define('ROOT_PATH', dirname(__DIR__));
 
 // ==============================================================================
-// 1. KREDENSIAL SUPABASE / POSTGRESQL (TEMPEL URL ANDA DI SINI JIKA INGIN HARDCODE)
+// 1. MEMBACA ENVIRONMENT VARIABLE DARI RAILWAY
 // ==============================================================================
-$supabase_url = ''; // <-- Bisa diisi URL Supabase atau dibiarkan kosong jika menggunakan Railway Variables
+$database_url = getenv("DATABASE_URL");
 
-// Parameter default Supabase proyek Anda
-$db_host = 'aws-0-ap-northeast-2.pooler.supabase.com';
-$db_port = 5432;                                      // Port Supabase (5432 atau 6543)
-$db_name = 'postgres';                                 // Database default Supabase adalah 'postgres'
-$db_user = 'postgres.tsesxoeipmaqzumfurpw';            // User default Supabase proyek Anda
-$db_pass = '';                                         // Password database Supabase Anda
-
-// ==============================================================================
-// 2. PARSING OTOMATIS CONNECTION STRING (URL) DARI RAILWAY / ENVIRONMENT / .ENV
-// ==============================================================================
-$activeUrl = !empty($supabase_url) ? $supabase_url : '';
-
-if (empty($activeUrl)) {
-    $activeUrl = getenv('DATABASE_URL') ?: ($_ENV['DATABASE_URL'] ?? ($_SERVER['DATABASE_URL'] ?? ''));
+// Fallback jika getenv() dibatasi oleh konfigurasi Apache / SAPI
+if (empty($database_url)) {
+    $database_url = $_ENV['DATABASE_URL'] ?? ($_SERVER['DATABASE_URL'] ?? '');
 }
 
-// Periksa juga jika ada file .env (yang diekspor oleh entrypoint.sh dari Railway)
-if (empty($activeUrl)) {
+// Fallback membaca file .env yang diekspor saat startup container Railway
+if (empty($database_url)) {
     $envPaths = [ROOT_PATH . '/.env', '/var/www/html/.env'];
     foreach ($envPaths as $ep) {
         if (file_exists($ep)) {
             $envContent = @file_get_contents($ep);
             if ($envContent && preg_match('/DATABASE_URL=["\']?([^"\'\r\n]+)/', $envContent, $m)) {
-                $activeUrl = trim($m[1]);
+                $database_url = trim($m[1]);
                 break;
             }
         }
     }
 }
 
-if (!empty($activeUrl)) {
-    $parsed = parse_url($activeUrl);
+// Parameter default koneksi database
+$db_host = 'aws-0-ap-northeast-2.pooler.supabase.com';
+$db_port = 5432;
+$db_name = 'postgres';
+$db_user = 'postgres.tsesxoeipmaqzumfurpw';
+$db_pass = '';
+
+// ==============================================================================
+// 2. PARSING DATABASE_URL MENJADI HOST, PORT, USER, PASS, DAN DBNAME
+// ==============================================================================
+if (!empty($database_url)) {
+    $parsed = parse_url($database_url);
     if ($parsed !== false && !empty($parsed['host'])) {
         $db_host = $parsed['host'];
         $db_port = !empty($parsed['port']) ? (int)$parsed['port'] : 5432;
@@ -75,8 +57,8 @@ if (!empty($activeUrl)) {
         if (isset($parsed['pass'])) {
             $db_pass = urldecode($parsed['pass']);
         }
-    } elseif (preg_match('#^postgres(?:ql)?://(?:(?<user>[^:]+):(?<pass>.*?)@)?(?<host>[^:/]+)(?::(?<port>\d+))?(?:/(?<dbname>[^?]+))?#', $activeUrl, $matches)) {
-        // Fallback jika URL memiliki karakter khusus (#, ?) pada password yang membatalkan parse_url bawaan
+    } elseif (preg_match('#^postgres(?:ql)?://(?:(?<user>[^:]+):(?<pass>.*?)@)?(?<host>[^:/]+)(?::(?<port>\d+))?(?:/(?<dbname>[^?]+))?#', $database_url, $matches)) {
+        // Fallback jika URL memiliki karakter khusus (#, ?) pada password
         $db_host = $matches['host'];
         $db_port = !empty($matches['port']) ? (int)$matches['port'] : 5432;
         if (!empty($matches['dbname'])) {
