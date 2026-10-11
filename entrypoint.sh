@@ -37,5 +37,23 @@ EOF
 echo "ServerName localhost" > /etc/apache2/conf-available/servername.conf
 a2enconf servername > /dev/null 2>&1 || true
 
+# Teruskan Environment Variables Railway (DATABASE_URL, dll.) ke proses Apache & PHP
+cat <<EOF > /etc/apache2/conf-available/railway-env.conf
+PassEnv DATABASE_URL
+PassEnv PORT
+PassEnv DB_HOST
+PassEnv DB_PORT
+PassEnv DB_NAME
+PassEnv DB_USER
+PassEnv DB_PASS
+EOF
+a2enconf railway-env > /dev/null 2>&1 || true
+
+# Tulis file .env runtime agar dapat dibaca langsung oleh PHP
+if [ -n "${DATABASE_URL}" ]; then
+    echo "DATABASE_URL=${DATABASE_URL}" > /var/www/html/.env
+    chmod 644 /var/www/html/.env
+fi
+
 # Jalankan Apache Web Server
 exec apache2-foreground

@@ -27,21 +27,39 @@
 defined('ROOT_PATH') or define('ROOT_PATH', dirname(__DIR__));
 
 // ==============================================================================
-// 1. KREDENSIAL SUPABASE / POSTGRESQL (TEMPEL URL ANDA DI SINI)
+// 1. KREDENSIAL SUPABASE / POSTGRESQL (TEMPEL URL ANDA DI SINI JIKA INGIN HARDCODE)
 // ==============================================================================
-$supabase_url = ''; // <-- CUKUP PASTE CONNECTION STRING SUPABASE ANDA DI SINI!
+$supabase_url = ''; // <-- Bisa diisi URL Supabase atau dibiarkan kosong jika menggunakan Railway Variables
 
-// Alternatif: Pengaturan parameter terpisah jika tidak menggunakan URL
-$db_host = 'db.yourproject.supabase.co';
-$db_port = 5432;                       // Port Supabase (5432 atau 6543 untuk pooler)
-$db_name = 'postgres';                  // Database default Supabase adalah 'postgres'
-$db_user = 'postgres';                  // User default Supabase
-$db_pass = 'password_supabase_anda';    // Password database Supabase Anda
+// Parameter default Supabase proyek Anda
+$db_host = 'aws-0-ap-northeast-2.pooler.supabase.com';
+$db_port = 5432;                                      // Port Supabase (5432 atau 6543)
+$db_name = 'postgres';                                 // Database default Supabase adalah 'postgres'
+$db_user = 'postgres.tsesxoeipmaqzumfurpw';            // User default Supabase proyek Anda
+$db_pass = '';                                         // Password database Supabase Anda
 
 // ==============================================================================
-// 2. PARSING OTOMATIS CONNECTION STRING (URL) JIKA DIISI ATAU DARI RAILWAY
+// 2. PARSING OTOMATIS CONNECTION STRING (URL) DARI RAILWAY / ENVIRONMENT / .ENV
 // ==============================================================================
-$activeUrl = !empty($supabase_url) ? $supabase_url : (getenv('DATABASE_URL') ?: ($_ENV['DATABASE_URL'] ?? ''));
+$activeUrl = !empty($supabase_url) ? $supabase_url : '';
+
+if (empty($activeUrl)) {
+    $activeUrl = getenv('DATABASE_URL') ?: ($_ENV['DATABASE_URL'] ?? ($_SERVER['DATABASE_URL'] ?? ''));
+}
+
+// Periksa juga jika ada file .env (yang diekspor oleh entrypoint.sh dari Railway)
+if (empty($activeUrl)) {
+    $envPaths = [ROOT_PATH . '/.env', '/var/www/html/.env'];
+    foreach ($envPaths as $ep) {
+        if (file_exists($ep)) {
+            $envContent = @file_get_contents($ep);
+            if ($envContent && preg_match('/DATABASE_URL=["\']?([^"\'\r\n]+)/', $envContent, $m)) {
+                $activeUrl = trim($m[1]);
+                break;
+            }
+        }
+    }
+}
 
 if (!empty($activeUrl)) {
     $parsed = parse_url($activeUrl);
@@ -120,9 +138,9 @@ class Database {
                     self::$driver   = 'pgsql';
                     return self::$instance;
                 } catch (PDOException $e) {
-                    // Jika gagal koneksi (misal belum diisi kredensial di lokal),
-                    // periksa apakah sedang menjalankan testing CLI / SQLite lokal
-                    if (php_sapi_name() === 'cli' || $host === 'localhost' || $host === '127.0.0.1' || strpos($host, 'yourproject') !== false) {
+                    // Fallback SQLite HANYA untuk pengujian CLI di komputer lokal
+                    // JANGAN aktifkan fallback SQLite di web server agar tidak terjadi error 'no such table: users'
+                    if (php_sapi_name() === 'cli' && ($host === 'localhost' || $host === '127.0.0.1')) {
                         $sqliteInstance = self::trySqliteFallback();
                         if ($sqliteInstance !== null) {
                             return $sqliteInstance;
@@ -134,7 +152,7 @@ class Database {
                 }
             } else {
                 // pdo_pgsql belum aktif di PHP runtime lokal
-                if (php_sapi_name() === 'cli' || $host === 'localhost' || $host === '127.0.0.1') {
+                if (php_sapi_name() === 'cli' && ($host === 'localhost' || $host === '127.0.0.1')) {
                     $sqliteInstance = self::trySqliteFallback();
                     if ($sqliteInstance !== null) {
                         return $sqliteInstance;
